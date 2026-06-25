@@ -43,3 +43,20 @@ export function formatInvoiceCount(count: number): string {
   if (count >= 3 && count <= 10) return `${count} فواتير`;
   return `${count} فاتورة`;
 }
+
+export function getDateInputValue(date: Date | string): string {
+  const value = typeof date === "string" ? new Date(date) : date;
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function getTodayDateInput(): string {
+  return getDateInputValue(new Date());
+}
+
+export function formatDateInputLabel(dateInput: string): string {
+  const [year, month, day] = dateInput.split("-").map(Number);
+  return formatDate(new Date(year, month - 1, day).toISOString());
+}

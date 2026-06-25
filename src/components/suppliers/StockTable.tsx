@@ -33,11 +33,10 @@ export default function StockTable({
     <>
       <div className="hidden rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 md:block">
         <div className="overflow-x-auto">
-          <table className="falah-table min-w-[700px] text-sm">
+          <table className="falah-table min-w-[600px] text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-brand-500/5 to-falah-accent/5 dark:from-brand-500/15 dark:to-falah-accent/15">
                 <th className="px-5 py-4 font-semibold text-gray-700 dark:text-white">{t("common.product")}</th>
-                <th className="px-5 py-4 font-semibold text-gray-700 dark:text-white">{t("common.pack")}</th>
                 <th className="px-5 py-4 font-semibold text-gray-700 dark:text-white">{t("common.pricePerKg")}</th>
                 <th className="px-5 py-4 font-semibold text-gray-700 dark:text-white">{t("suppliers.qtyKg")}</th>
                 <th className="min-w-[200px] px-5 py-4 text-end font-semibold text-gray-700 dark:text-white">{t("common.actions")}</th>
@@ -47,9 +46,6 @@ export default function StockTable({
               {stock.map((item, index) => (
                 <motion.tr key={item.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }} className="border-b border-gray-50 dark:border-gray-800 hover:bg-brand-50/30 dark:hover:bg-gray-800/60">
                   <td className="px-5 py-4 font-medium text-gray-900 dark:text-white">{item.productName}</td>
-                  <td className="px-5 py-4">
-                    <span className="rounded-md bg-falah-accent/10 px-2 py-0.5 text-xs font-medium text-falah-accent">{item.packName}</span>
-                  </td>
                   <td className="px-5 py-4 text-brand-600">{formatCurrency(item.pricePerKg)}</td>
                   <td className="px-5 py-4 font-semibold text-gray-800 dark:text-white">{formatWeight(item.quantityKg)}</td>
                   <td className="px-5 py-4">
@@ -75,7 +71,6 @@ export default function StockTable({
             <div className="flex items-start justify-between">
               <div>
                 <p className="font-semibold text-gray-900 dark:text-white">{item.productName}</p>
-                <p className="text-xs text-falah-accent">{item.packName}</p>
               </div>
               <p className="font-bold text-gray-800 dark:text-white">{formatWeight(item.quantityKg)}</p>
             </div>

@@ -8,7 +8,8 @@ import {
 } from "react";
 import type { InvoiceTemplate, TemplateLine } from "../types/templates";
 
-const STORAGE_KEY = "falah-templates-v1";
+const STORAGE_KEY = "falah-templates-v2";
+const LEGACY_STORAGE_KEY = "falah-templates-v1";
 
 interface TemplatesContextValue {
   templates: InvoiceTemplate[];
@@ -20,10 +21,38 @@ interface TemplatesContextValue {
 
 const TemplatesContext = createContext<TemplatesContextValue | null>(null);
 
+function migrateTemplateLines(
+  lines: Array<TemplateLine & { packCount?: number }>
+): TemplateLine[] {
+  return lines.map((line) => ({
+    productId: line.productId,
+    packId: line.packId ?? "",
+    quantity: line.quantity ?? line.packCount ?? 1,
+    unitNetWeight: line.unitNetWeight,
+    unitGrossWeight: line.unitGrossWeight,
+    pricePerKg: line.pricePerKg,
+    supplier: line.supplier,
+  }));
+}
+
 function loadTemplates(): InvoiceTemplate[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as InvoiceTemplate[];
+    const raw =
+      localStorage.getItem(STORAGE_KEY) ??
+      localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (raw) {
+      const templates = (JSON.parse(raw) as InvoiceTemplate[]).map(
+        (template) => ({
+          ...template,
+          lines: migrateTemplateLines(template.lines),
+        })
+      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+      if (localStorage.getItem(LEGACY_STORAGE_KEY)) {
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+      }
+      return templates;
+    }
   } catch {
     // fall through
   }

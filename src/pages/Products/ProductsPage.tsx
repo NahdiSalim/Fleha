@@ -13,10 +13,19 @@ import { formatCurrency } from "../../utils/format";
 import type { ProductSummary } from "../../types/inventory";
 
 export default function ProductsPage() {
-  const { products, packs, addProduct, updateProduct, deleteProduct } = useInventory();
+  const { products, addProduct, updateProduct, deleteProduct } = useInventory();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<ProductSummary | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ProductSummary | null>(null);
+
+  const vegetables = useMemo(
+    () => products.filter((p) => p.category === "vegetable"),
+    [products]
+  );
+  const fruits = useMemo(
+    () => products.filter((p) => p.category === "fruit"),
+    [products]
+  );
 
   const avgPrice = useMemo(() => {
     if (products.length === 0) return 0;
@@ -34,28 +43,38 @@ export default function ProductsPage() {
               {t("products.subtitle")}
             </motion.p>
           </div>
-          <motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setIsAddOpen(true)} disabled={packs.length === 0} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25 disabled:opacity-50">
+          <motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setIsAddOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-500/25">
             <PlusIcon className="h-4 w-4" /> {t("products.addProduct")}
           </motion.button>
         </div>
 
-        {packs.length === 0 && (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            {t("products.needPackFirst")}
-          </div>
-        )}
-
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <StatCard label={t("products.totalProducts")} value={String(products.length)} icon={<BoxCubeIcon className="h-5 w-5" />} accent="primary" delay={0} />
-          <StatCard label={t("products.avgPrice")} value={formatCurrency(avgPrice)} icon={<DollarLineIcon className="h-5 w-5" />} accent="accent" delay={0.05} />
-          <StatCard label={t("common.packTypes")} value={String(packs.length)} icon={<BoxCubeIcon className="h-5 w-5" />} accent="primary" delay={0.1} />
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label={t("products.vegetables")} value={String(vegetables.length)} icon={<BoxCubeIcon className="h-5 w-5" />} accent="primary" delay={0} />
+          <StatCard label={t("products.fruits")} value={String(fruits.length)} icon={<BoxCubeIcon className="h-5 w-5" />} accent="accent" delay={0.05} />
+          <StatCard label={t("products.totalProducts")} value={String(products.length)} icon={<BoxCubeIcon className="h-5 w-5" />} accent="primary" delay={0.1} />
+          <StatCard label={t("products.avgPrice")} value={formatCurrency(avgPrice)} icon={<DollarLineIcon className="h-5 w-5" />} accent="accent" delay={0.15} />
         </div>
 
-        <ProductsTable products={products} onEdit={setEditProduct} onDelete={setDeleteTarget} />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-0">
+          <section className="min-w-0 lg:pe-6">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+              {t("products.vegetables")}
+              <span className="ms-2 text-sm font-normal text-gray-400">({vegetables.length})</span>
+            </h2>
+            <ProductsTable products={vegetables} onEdit={setEditProduct} onDelete={setDeleteTarget} />
+          </section>
+          <section className="min-w-0 border-t border-gray-200 pt-6 lg:border-s lg:border-t-0 lg:pt-0 lg:ps-6 dark:border-gray-700">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+              {t("products.fruits")}
+              <span className="ms-2 text-sm font-normal text-gray-400">({fruits.length})</span>
+            </h2>
+            <ProductsTable products={fruits} onEdit={setEditProduct} onDelete={setDeleteTarget} />
+          </section>
+        </div>
       </AnimatedPage>
 
-      <ProductFormModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onSubmit={(name, packId, price) => addProduct(name, packId, price)} packs={packs} mode="add" />
-      <ProductFormModal isOpen={!!editProduct} onClose={() => setEditProduct(null)} onSubmit={(name, packId, price) => editProduct && updateProduct(editProduct.id, name, packId, price)} packs={packs} initialName={editProduct?.name} initialPackId={editProduct?.packId} initialPrice={editProduct?.pricePerKg} mode="edit" />
+      <ProductFormModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onSubmit={(name, price, category) => addProduct(name, price, category)} mode="add" />
+      <ProductFormModal isOpen={!!editProduct} onClose={() => setEditProduct(null)} onSubmit={(name, price, category) => editProduct && updateProduct(editProduct.id, name, price, category)} initialName={editProduct?.name} initialPrice={editProduct?.pricePerKg} initialCategory={editProduct?.category} mode="edit" />
       <ConfirmDialog isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={() => deleteTarget && deleteProduct(deleteTarget.id)} title={t("products.deleteTitle")} message={t("products.deleteMessageWithStock", { name: deleteTarget?.name ?? "" })} confirmLabel={t("common.delete")} />
     </>
   );

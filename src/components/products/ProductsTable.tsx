@@ -1,9 +1,8 @@
 import { motion } from "framer-motion";
 import { PencilIcon, TrashBinIcon } from "../../icons";
 import { t } from "../../i18n";
-import { formatCurrency, formatWeight } from "../../utils/format";
+import { formatCurrency } from "../../utils/format";
 import type { ProductSummary } from "../../types/inventory";
-import PackBadge from "../sell/PackBadge";
 
 interface ProductsTableProps {
   products: ProductSummary[];
@@ -32,7 +31,6 @@ export default function ProductsTable({
           <thead>
             <tr className="border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-brand-500/5 to-falah-accent/5 dark:from-brand-500/15 dark:to-falah-accent/15">
               <th className="px-6 py-4 font-semibold text-gray-700 dark:text-white">{t("common.name")}</th>
-              <th className="px-6 py-4 font-semibold text-gray-700 dark:text-white">{t("common.pack")}</th>
               <th className="px-6 py-4 font-semibold text-gray-700 dark:text-white">{t("common.pricePerKg")}</th>
               <th className="px-6 py-4 text-end font-semibold text-gray-700 dark:text-white">{t("common.actions")}</th>
             </tr>
@@ -47,12 +45,6 @@ export default function ProductsTable({
                 className="border-b border-gray-50 dark:border-gray-800 hover:bg-brand-50/30 dark:hover:bg-gray-800/60"
               >
                 <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{product.name}</td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <PackBadge packName={product.packName} />
-                    <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-300">{formatWeight(product.packWeight)}</span>
-                  </div>
-                </td>
                 <td className="px-6 py-4 font-semibold text-brand-600">
                   {formatCurrency(product.pricePerKg)}
                 </td>
@@ -75,11 +67,9 @@ export default function ProductsTable({
       <div className="space-y-4 md:hidden">
         {products.map((product, index) => (
           <motion.div key={product.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.06 }} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <p className="font-semibold text-gray-900 dark:text-white">{product.name}</p>
-            <div className="mt-2 flex items-center gap-2">
-              <PackBadge packName={product.packName} size="xs" />
-              <span className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-300">{formatWeight(product.packWeight)}</span>
-              <span className="ms-auto font-semibold text-brand-600">{formatCurrency(product.pricePerKg)}/{t("common.kg")}</span>
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-gray-900 dark:text-white">{product.name}</p>
+              <span className="font-semibold text-brand-600">{formatCurrency(product.pricePerKg)}/{t("common.kg")}</span>
             </div>
             <div className="mt-3 flex gap-2">
               <button onClick={() => onEdit(product)} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 py-2 text-xs font-medium text-gray-600 dark:text-gray-200">

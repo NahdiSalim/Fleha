@@ -918,7 +918,9 @@ span.flatpickr-weekday,
   }
 
   .print-invoice-root,
-  .print-invoice-root * {
+  .print-invoice-root *,
+  .print-supply-labels-root,
+  .print-supply-labels-root * {
     visibility: visible;
   }
 
@@ -935,11 +937,34 @@ span.flatpickr-weekday,
     print-color-adjust: economy;
   }
 
+  .print-supply-labels-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    margin: 0;
+    padding: 0;
+    color: #000 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: economy;
+    print-color-adjust: economy;
+  }
+
+  .print-supply-label {
+    font-family: "Courier New", Courier, monospace;
+    page-break-after: always;
+  }
+
+  .print-supply-label:last-child {
+    page-break-after: auto;
+  }
+
   .print-invoice-sheet {
     font-family: "Courier New", Courier, monospace;
   }
 
-  .print-invoice-root * {
+  .print-invoice-root *,
+  .print-supply-labels-root * {
     color: #000 !important;
     box-shadow: none !important;
     text-shadow: none !important;

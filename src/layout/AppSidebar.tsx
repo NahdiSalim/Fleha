@@ -1,17 +1,29 @@
 import { Link, useLocation } from "react-router";
 
-import { GridIcon, GroupIcon, HorizontaLDots, BoxIcon, BoxCubeIcon, UserCircleIcon, PaperPlaneIcon, FileIcon } from "../icons";
+import { GridIcon, GroupIcon, HorizontaLDots, BoxIcon, BoxCubeIcon, UserCircleIcon, PaperPlaneIcon, FileIcon, DollarLineIcon, FolderIcon, DocsIcon, LockIcon } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import { t } from "../i18n";
 
 const navItems = [
   { nameKey: "nav.dashboard", path: "/", icon: GridIcon },
+  { nameKey: "nav.khazina", path: "/khazina", icon: DollarLineIcon },
   { nameKey: "nav.sell", path: "/sell", icon: PaperPlaneIcon },
+  {
+    nameKey: "nav.pawn",
+    path: "/mou3alja-bil-rhan",
+    icon: LockIcon,
+  },
+  {
+    nameKey: "nav.sellFollowup",
+    path: "/moutaba3t-bay3-el-badha2i3",
+    icon: DocsIcon,
+  },
   { nameKey: "nav.templates", path: "/templates", icon: FileIcon },
   { nameKey: "nav.clients", path: "/clients", icon: GroupIcon },
   { nameKey: "nav.packs", path: "/packs", icon: BoxIcon },
   { nameKey: "nav.products", path: "/products", icon: BoxCubeIcon },
   { nameKey: "nav.suppliers", path: "/suppliers", icon: UserCircleIcon },
+  { nameKey: "nav.tasalom", path: "/tasalom-bidha3a", icon: FolderIcon },
 ];
 
 const AppSidebar: React.FC = () => {

@@ -7,42 +7,61 @@ import {
   type ReactNode,
 } from "react";
 import { seedPacks, seedProducts, seedSuppliers } from "../data/seedInventory";
+import { inferProductCategory } from "../data/seedProducts";
 import { t } from "../i18n";
 import type {
   Pack,
   Product,
+  ProductCategory,
   ProductSummary,
+  SupplyReceipt,
   StockItemSummary,
   Supplier,
   SupplierSummary,
 } from "../types/inventory";
 
-const STORAGE_KEY = "falah-inventory-data-v2";
+const STORAGE_KEY = "falah-inventory-data-v6";
+const LEGACY_STORAGE_KEY = "falah-inventory-data-v5";
 
 interface StoredData {
   packs: Pack[];
   products: Product[];
   suppliers: Supplier[];
+  supplyReceipts: SupplyReceipt[];
 }
 
 interface InventoryContextValue {
   packs: Pack[];
   products: ProductSummary[];
   suppliers: SupplierSummary[];
+  supplyReceipts: SupplyReceipt[];
   getPack: (id: string) => Pack | undefined;
   getProduct: (id: string) => ProductSummary | undefined;
   getSupplier: (id: string) => SupplierSummary | undefined;
   getSupplierStock: (supplierId: string) => StockItemSummary[];
-  getPackUsageCount: (packId: string) => number;
-  addPack: (name: string, weight: number) => Pack;
-  updatePack: (id: string, name: string, weight: number) => void;
-  deletePack: (id: string) => boolean;
-  addProduct: (name: string, packId: string, pricePerKg: number) => Product;
+  receiveSupply: (
+    supplierId: string,
+    productId: string,
+    quantityKg: number
+  ) => SupplyReceipt | null;
+  receiveSupplies: (params: {
+    supplierId?: string;
+    newSupplier?: { name: string; phone?: string };
+    lines: { productId: string; quantityKg: number }[];
+  }) => SupplyReceipt[];
+  addPack: (name: string, weight: number, price: number) => Pack;
+  updatePack: (id: string, name: string, weight: number, price: number) => void;
+  deletePack: (id: string) => void;
+  addProduct: (
+    name: string,
+    pricePerKg: number,
+    category: ProductCategory
+  ) => Product;
   updateProduct: (
     id: string,
     name: string,
-    packId: string,
-    pricePerKg: number
+    pricePerKg: number,
+    category: ProductCategory
   ) => void;
   deleteProduct: (id: string) => void;
   addSupplier: (name: string, phone: string) => Supplier;
@@ -68,23 +87,52 @@ interface InventoryContextValue {
 
 const InventoryContext = createContext<InventoryContextValue | null>(null);
 
+function normalizeProduct(product: Product & { category?: ProductCategory }): Product {
+  return {
+    ...product,
+    category: product.category ?? inferProductCategory(product.name),
+  };
+}
+
+function normalizeData(data: StoredData): StoredData {
+  return {
+    ...data,
+    products: data.products.map(normalizeProduct),
+    supplyReceipts: (data.supplyReceipts ?? []).map((receipt) => ({
+      ...receipt,
+      batchId: receipt.batchId ?? receipt.id,
+    })),
+  };
+}
+
 function loadStoredData(): StoredData {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as StoredData;
+    const raw =
+      localStorage.getItem(STORAGE_KEY) ??
+      localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (raw) {
+      const data = normalizeData(JSON.parse(raw) as StoredData);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      if (localStorage.getItem(LEGACY_STORAGE_KEY)) {
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+      }
+      return data;
+    }
   } catch {
     // fall through
   }
-  return { packs: seedPacks, products: seedProducts, suppliers: seedSuppliers };
-}
 
-function summarizeProduct(product: Product, packs: Pack[]): ProductSummary {
-  const pack = packs.find((p) => p.id === product.packId);
-  return {
-    ...product,
-    packName: pack?.name ?? t("common.unknown"),
-    packWeight: pack?.weight ?? 0,
+  localStorage.removeItem("falah-inventory-data-v3");
+  localStorage.removeItem("falah-inventory-data-v2");
+
+  const data = {
+    packs: seedPacks,
+    products: seedProducts,
+    suppliers: seedSuppliers,
+    supplyReceipts: [],
   };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  return data;
 }
 
 function summarizeSupplier(supplier: Supplier): SupplierSummary {
@@ -113,13 +161,11 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
   const products = useMemo(
     () =>
-      data.products
-        .map((p) => summarizeProduct(p, data.packs))
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        ),
-    [data.products, data.packs]
+      [...data.products].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ),
+    [data.products]
   );
 
   const suppliers = useMemo(
@@ -131,6 +177,14 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         ),
     [data.suppliers]
+  );
+
+  const supplyReceipts = useMemo(
+    () =>
+      [...data.supplyReceipts].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ),
+    [data.supplyReceipts]
   );
 
   const getPack = useCallback(
@@ -155,39 +209,118 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
       return supplier.stock
         .map((item) => {
-          const product = summarizeProduct(
-            data.products.find((p) => p.id === item.productId) ?? {
-              id: item.productId,
-              name: t("common.unknown"),
-              packId: "",
-              pricePerKg: 0,
-              createdAt: "",
-            },
-            data.packs
-          );
+          const product = data.products.find((p) => p.id === item.productId);
           return {
             ...item,
-            productName: product.name,
-            packName: product.packName,
-            pricePerKg: product.pricePerKg,
+            productName: product?.name ?? t("common.unknown"),
+            pricePerKg: product?.pricePerKg ?? 0,
           };
         })
         .sort((a, b) => a.productName.localeCompare(b.productName));
     },
-    [data.suppliers, data.products, data.packs]
+    [data.suppliers, data.products]
   );
 
-  const getPackUsageCount = useCallback(
-    (packId: string) => data.products.filter((p) => p.packId === packId).length,
-    [data.products]
+  const receiveSupplies = useCallback(
+    (params: {
+      supplierId?: string;
+      newSupplier?: { name: string; phone?: string };
+      lines: { productId: string; quantityKg: number }[];
+    }) => {
+      const { lines } = params;
+      if (lines.length === 0) return [];
+
+      let supplier: Supplier | undefined;
+      let suppliers = data.suppliers;
+
+      if (params.supplierId) {
+        supplier = data.suppliers.find((s) => s.id === params.supplierId);
+      } else if (params.newSupplier?.name.trim()) {
+        const created: Supplier = {
+          id: crypto.randomUUID(),
+          name: params.newSupplier.name.trim(),
+          phone: params.newSupplier.phone?.trim() || "-",
+          stock: [],
+          createdAt: new Date().toISOString(),
+        };
+        supplier = created;
+        suppliers = [created, ...data.suppliers];
+      }
+
+      if (!supplier) return [];
+
+      const supplierId = supplier.id;
+      const stockByProduct = new Map(
+        supplier.stock.map((item) => [item.productId, { ...item }])
+      );
+      const receipts: SupplyReceipt[] = [];
+      const batchId = crypto.randomUUID();
+      const now = new Date().toISOString();
+
+      for (const line of lines) {
+        const product = data.products.find((p) => p.id === line.productId);
+        if (!product || line.quantityKg <= 0) continue;
+
+        const qty = Math.round(line.quantityKg * 100) / 100;
+        const existing = stockByProduct.get(line.productId);
+        if (existing) {
+          existing.quantityKg = Math.round((existing.quantityKg + qty) * 100) / 100;
+        } else {
+          stockByProduct.set(line.productId, {
+            id: crypto.randomUUID(),
+            productId: line.productId,
+            quantityKg: qty,
+          });
+        }
+
+        receipts.push({
+          id: crypto.randomUUID(),
+          batchId,
+          supplierId,
+          supplierName: supplier.name,
+          productId: line.productId,
+          productName: product.name,
+          quantityKg: qty,
+          createdAt: now,
+          source: "manual",
+        });
+      }
+
+      if (receipts.length === 0) return [];
+
+      persist({
+        ...data,
+        suppliers: suppliers.map((s) =>
+          s.id === supplierId
+            ? { ...s, stock: Array.from(stockByProduct.values()) }
+            : s
+        ),
+        supplyReceipts: [...receipts, ...data.supplyReceipts],
+      });
+
+      return receipts;
+    },
+    [data, persist]
+  );
+
+  const receiveSupply = useCallback(
+    (supplierId: string, productId: string, quantityKg: number) => {
+      const receipts = receiveSupplies({
+        supplierId,
+        lines: [{ productId, quantityKg }],
+      });
+      return receipts[0] ?? null;
+    },
+    [receiveSupplies]
   );
 
   const addPack = useCallback(
-    (name: string, weight: number) => {
+    (name: string, weight: number, price: number) => {
       const pack: Pack = {
         id: crypto.randomUUID(),
         name: name.trim(),
         weight,
+        price,
         createdAt: new Date().toISOString(),
       };
       persist({ ...data, packs: [pack, ...data.packs] });
@@ -197,11 +330,11 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   );
 
   const updatePack = useCallback(
-    (id: string, name: string, weight: number) => {
+    (id: string, name: string, weight: number, price: number) => {
       persist({
         ...data,
         packs: data.packs.map((p) =>
-          p.id === id ? { ...p, name: name.trim(), weight } : p
+          p.id === id ? { ...p, name: name.trim(), weight, price } : p
         ),
       });
     },
@@ -210,19 +343,17 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
   const deletePack = useCallback(
     (id: string) => {
-      if (data.products.some((p) => p.packId === id)) return false;
       persist({ ...data, packs: data.packs.filter((p) => p.id !== id) });
-      return true;
     },
     [data, persist]
   );
 
   const addProduct = useCallback(
-    (name: string, packId: string, pricePerKg: number) => {
+    (name: string, pricePerKg: number, category: ProductCategory) => {
       const product: Product = {
         id: crypto.randomUUID(),
         name: name.trim(),
-        packId,
+        category,
         pricePerKg,
         createdAt: new Date().toISOString(),
       };
@@ -233,13 +364,11 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   );
 
   const updateProduct = useCallback(
-    (id: string, name: string, packId: string, pricePerKg: number) => {
+    (id: string, name: string, pricePerKg: number, category: ProductCategory) => {
       persist({
         ...data,
         products: data.products.map((p) =>
-          p.id === id
-            ? { ...p, name: name.trim(), packId, pricePerKg }
-            : p
+          p.id === id ? { ...p, name: name.trim(), pricePerKg, category } : p
         ),
       });
     },
@@ -395,11 +524,13 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       packs,
       products,
       suppliers,
+      supplyReceipts,
       getPack,
       getProduct,
       getSupplier,
       getSupplierStock,
-      getPackUsageCount,
+      receiveSupply,
+      receiveSupplies,
       addPack,
       updatePack,
       deletePack,
@@ -418,11 +549,13 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       packs,
       products,
       suppliers,
+      supplyReceipts,
       getPack,
       getProduct,
       getSupplier,
       getSupplierStock,
-      getPackUsageCount,
+      receiveSupply,
+      receiveSupplies,
       addPack,
       updatePack,
       deletePack,

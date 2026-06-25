@@ -1,25 +1,17 @@
 import { motion } from "framer-motion";
 import { PencilIcon, TrashBinIcon } from "../../icons";
 import { t } from "../../i18n";
-import { formatWeight } from "../../utils/format";
+import { formatCurrency, formatWeight } from "../../utils/format";
 import type { Pack } from "../../types/inventory";
 
 interface PacksTableProps {
   packs: Pack[];
-  usageCounts: Record<string, number>;
   onEdit: (pack: Pack) => void;
   onDelete: (pack: Pack) => void;
 }
 
-function formatProductCount(count: number): string {
-  return count === 1
-    ? t("packs.productCount", { count })
-    : t("packs.productCountPlural", { count });
-}
-
 export default function PacksTable({
   packs,
-  usageCounts,
   onEdit,
   onDelete,
 }: PacksTableProps) {
@@ -44,7 +36,7 @@ export default function PacksTable({
             <tr className="border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-brand-500/5 to-falah-accent/5 dark:from-brand-500/15 dark:to-falah-accent/15">
               <th className="px-6 py-4 font-semibold text-gray-700 dark:text-white">{t("common.name")}</th>
               <th className="px-6 py-4 font-semibold text-gray-700 dark:text-white">{t("common.weight")}</th>
-              <th className="px-6 py-4 font-semibold text-gray-700 dark:text-white">{t("common.usedBy")}</th>
+              <th className="px-6 py-4 font-semibold text-gray-700 dark:text-white">{t("packs.packPrice")}</th>
               <th className="px-6 py-4 text-end font-semibold text-gray-700 dark:text-white">{t("common.actions")}</th>
             </tr>
           </thead>
@@ -68,8 +60,8 @@ export default function PacksTable({
                 <td className="px-6 py-4 font-medium text-gray-700 dark:text-gray-100">
                   {formatWeight(pack.weight)}
                 </td>
-                <td className="px-6 py-4 text-gray-500 dark:text-gray-300">
-                  {formatProductCount(usageCounts[pack.id] ?? 0)}
+                <td className="px-6 py-4 font-semibold text-brand-600">
+                  {formatCurrency(pack.price)}
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex justify-end gap-2">
@@ -109,9 +101,7 @@ export default function PacksTable({
                 <p className="font-semibold text-gray-900 dark:text-white">{pack.name}</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{formatWeight(pack.weight)}</p>
               </div>
-              <p className="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-300">
-                {usageCounts[pack.id] ?? 0} {t("packs.productsShort")}
-              </p>
+              <p className="font-semibold text-brand-600">{formatCurrency(pack.price)}</p>
             </div>
             <div className="mt-3 flex gap-2">
               <button

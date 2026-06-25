@@ -83,7 +83,6 @@ export default function InvoiceDetailsModal({
                 <th className="px-4 py-3 font-medium">{t("sellTable.product")}</th>
                 <th className="px-4 py-3 font-medium">{t("sellTable.unitType")}</th>
                 <th className="px-4 py-3 font-medium">{t("sellTable.quantity")}</th>
-                <th className="px-4 py-3 font-medium">{t("sellTable.packCount")}</th>
                 <th className="px-4 py-3 font-medium">{t("sellTable.grossWeight")}</th>
                 <th className="px-4 py-3 font-medium">{t("sellTable.netWeight")}</th>
                 <th className="px-4 py-3 font-medium">{t("sellTable.priceKg")}</th>
@@ -109,7 +108,6 @@ export default function InvoiceDetailsModal({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-200">{product.quantity}</td>
-                  <td className="px-4 py-3 text-gray-600 dark:text-gray-200">{product.packCount}</td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-200">
                     {formatWeight(product.grossWeight)}
                   </td>

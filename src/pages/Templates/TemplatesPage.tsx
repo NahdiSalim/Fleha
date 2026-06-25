@@ -13,7 +13,7 @@ import PackBadge from "../../components/sell/PackBadge";
 
 export default function TemplatesPage() {
   const { templates, deleteTemplate } = useTemplates();
-  const { products } = useInventory();
+  const { products, getPack } = useInventory();
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const deleteTarget = templates.find((tpl) => tpl.id === deleteId);
@@ -69,10 +69,11 @@ export default function TemplatesPage() {
                 <ul className="max-h-32 overflow-y-auto px-5 py-3 text-xs text-gray-600">
                   {template.lines.map((line, i) => {
                     const product = products.find((p) => p.id === line.productId);
+                    const pack = line.packId ? getPack(line.packId) : undefined;
                     return (
                       <li key={i} className="flex items-center justify-between gap-2 border-b border-gray-50 dark:border-gray-800 py-1 last:border-0">
                         <span>{product?.name ?? t("common.unknown")}</span>
-                        {product && <PackBadge packName={product.packName} size="xs" />}
+                        {pack && <PackBadge packName={pack.name} size="xs" />}
                         <span className="shrink-0 text-gray-400">{t("templates.qtyLabel", { qty: line.quantity })}</span>
                       </li>
                     );

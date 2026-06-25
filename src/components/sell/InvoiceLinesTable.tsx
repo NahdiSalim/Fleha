@@ -1,19 +1,21 @@
+import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TrashBinIcon } from "../../icons";
 import { t } from "../../i18n";
 import { formatCurrency, formatWeight } from "../../utils/format";
-import type { ProductSummary } from "../../types/inventory";
+import type { Pack, ProductSummary } from "../../types/inventory";
 import type { SellLineItem } from "../../types/templates";
 import {
+  applyPackToLine,
   getProductDisplayLabel,
-  packNameToUnitType,
   recalculateLine,
 } from "../../utils/sellCalculations";
-import PackBadge from "./PackBadge";
+import SearchableSelect from "../ui/SearchableSelect";
 
 interface InvoiceLinesTableProps {
   lines: SellLineItem[];
   products: ProductSummary[];
+  packs: Pack[];
   suppliersForProduct: (productId: string) => string[];
   onChange: (lines: SellLineItem[]) => void;
   onDropProduct: (productId: string) => void;
@@ -25,10 +27,30 @@ const inputClass =
 export default function InvoiceLinesTable({
   lines,
   products,
+  packs,
   suppliersForProduct,
   onChange,
   onDropProduct,
 }: InvoiceLinesTableProps) {
+  const productOptions = useMemo(
+    () =>
+      products.map((p) => ({
+        value: p.id,
+        label: getProductDisplayLabel(p),
+      })),
+    [products]
+  );
+
+  const packOptions = useMemo(
+    () =>
+      packs.map((pack) => ({
+        value: pack.id,
+        label: `${pack.name} (${formatWeight(pack.weight)})`,
+        searchText: pack.name,
+      })),
+    [packs]
+  );
+
   const updateLine = (id: string, patch: Partial<SellLineItem>) => {
     onChange(
       lines.map((line) => {
@@ -49,11 +71,19 @@ export default function InvoiceLinesTable({
           ...line,
           productId: product.id,
           productName: product.name,
-          unitType: packNameToUnitType(product.packName),
-          packWeight: product.packWeight,
           pricePerKg: product.pricePerKg,
           supplier: suppliers[0] ?? line.supplier,
         });
+      })
+    );
+  };
+
+  const changePack = (id: string, packId: string) => {
+    const pack = packs.find((p) => p.id === packId);
+    onChange(
+      lines.map((line) => {
+        if (line.id !== id) return line;
+        return recalculateLine(applyPackToLine(line, pack));
       })
     );
   };
@@ -99,13 +129,12 @@ export default function InvoiceLinesTable({
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="falah-table min-w-[1100px] text-xs">
+          <table className="falah-table min-w-[1000px] text-xs">
             <thead>
               <tr className="border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-brand-500/5 to-falah-accent/5 dark:from-brand-500/15 dark:to-falah-accent/15">
                 <th className="px-3 py-3 font-semibold text-gray-700 dark:text-white">{t("sellTable.product")}</th>
                 <th className="px-3 py-3 font-semibold text-gray-700 dark:text-white">{t("common.pack")}</th>
                 <th className="px-3 py-3 font-semibold text-gray-700 dark:text-white">{t("sellTable.quantity")}</th>
-                <th className="px-3 py-3 font-semibold text-gray-700 dark:text-white">{t("sellTable.packCount")}</th>
                 <th className="px-3 py-3 font-semibold text-gray-700 dark:text-white">{t("sellTable.unitNet")}</th>
                 <th className="px-3 py-3 font-semibold text-gray-700 dark:text-white">{t("sellTable.unitGross")}</th>
                 <th className="px-3 py-3 font-semibold text-gray-700 dark:text-white">{t("sellTable.packWt")}</th>
@@ -130,26 +159,27 @@ export default function InvoiceLinesTable({
                       className="border-b border-gray-50 dark:border-gray-800 hover:bg-brand-50/20"
                     >
                       <td className="px-3 py-2">
-                        <select
+                        <SearchableSelect
                           value={line.productId}
-                          onChange={(e) => changeProduct(line.id, e.target.value)}
-                          className={inputClass}
-                        >
-                          {products.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {getProductDisplayLabel(p)}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(productId) => changeProduct(line.id, productId)}
+                          options={productOptions}
+                          size="sm"
+                          className="rounded-lg"
+                        />
                       </td>
                       <td className="px-3 py-2">
-                        <PackBadge packName={products.find((p) => p.id === line.productId)?.packName ?? line.unitType} size="xs" />
+                        <SearchableSelect
+                          value={line.packId}
+                          onChange={(packId) => changePack(line.id, packId)}
+                          options={packOptions}
+                          placeholder={t("sellTable.selectPack")}
+                          emptyOption={{ value: "", label: t("sellTable.selectPack") }}
+                          size="sm"
+                          className="rounded-lg"
+                        />
                       </td>
                       <td className="px-3 py-2">
                         <input type="number" min="0" step="1" value={line.quantity} onChange={(e) => updateLine(line.id, { quantity: parseFloat(e.target.value) || 0 })} className={inputClass} />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input type="number" min="0" step="1" value={line.packCount} onChange={(e) => updateLine(line.id, { packCount: parseFloat(e.target.value) || 0 })} className={inputClass} />
                       </td>
                       <td className="px-3 py-2">
                         <input type="number" min="0" step="0.01" value={line.unitNetWeight} onChange={(e) => updateLine(line.id, { unitNetWeight: parseFloat(e.target.value) || 0 })} className={inputClass} />
@@ -164,12 +194,15 @@ export default function InvoiceLinesTable({
                       </td>
                       <td className="px-3 py-2 font-semibold text-brand-600">{formatCurrency(line.total)}</td>
                       <td className="px-3 py-2">
-                        <select value={line.supplier} onChange={(e) => updateLine(line.id, { supplier: e.target.value })} className={inputClass}>
-                          <option value="">—</option>
-                          {supplierOptions.map((s) => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                        </select>
+                        <SearchableSelect
+                          value={line.supplier}
+                          onChange={(supplier) => updateLine(line.id, { supplier })}
+                          options={supplierOptions.map((s) => ({ value: s, label: s }))}
+                          placeholder="—"
+                          emptyOption={{ value: "", label: "—" }}
+                          size="sm"
+                          className="rounded-lg"
+                        />
                       </td>
                       <td className="px-3 py-2">
                         <button type="button" onClick={() => removeLine(line.id)} className="rounded-lg p-1.5 text-red-400 hover:bg-red-50" title={t("sellTable.remove")}>
@@ -183,7 +216,7 @@ export default function InvoiceLinesTable({
             </tbody>
             <tfoot>
               <tr className="bg-gray-50 dark:bg-gray-800 font-semibold">
-                <td colSpan={7} className="px-3 py-3 text-end text-gray-600 dark:text-gray-200">{t("common.totals")}</td>
+                <td colSpan={6} className="px-3 py-3 text-end text-gray-600 dark:text-gray-200">{t("common.totals")}</td>
                 <td className="px-3 py-3">{formatWeight(Math.round(totals.net * 100) / 100)}</td>
                 <td className="px-3 py-3" />
                 <td className="px-3 py-3 text-brand-600 dark:text-brand-400">{formatCurrency(Math.round(totals.amount * 100) / 100)}</td>

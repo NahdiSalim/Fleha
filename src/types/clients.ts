@@ -25,6 +25,8 @@ export interface Invoice {
   paid: number;
   balanceDue: number;
   status: InvoiceStatus;
+  pawnCode?: string;
+  packDepositTotal?: number;
 }
 
 export interface Client {

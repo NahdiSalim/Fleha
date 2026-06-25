@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
 import Modal from "../ui/modal/Modal";
 import { t } from "../../i18n";
-import type { Pack } from "../../types/inventory";
+import type { ProductCategory } from "../../types/inventory";
 
 interface ProductFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (name: string, packId: string, pricePerKg: number) => void;
-  packs: Pack[];
+  onSubmit: (name: string, pricePerKg: number, category: ProductCategory) => void;
   initialName?: string;
-  initialPackId?: string;
   initialPrice?: number;
+  initialCategory?: ProductCategory;
   mode: "add" | "edit";
 }
 
@@ -18,25 +17,24 @@ export default function ProductFormModal({
   isOpen,
   onClose,
   onSubmit,
-  packs,
   initialName = "",
-  initialPackId = "",
   initialPrice = 0,
+  initialCategory = "vegetable",
   mode,
 }: ProductFormModalProps) {
   const [name, setName] = useState(initialName);
-  const [packId, setPackId] = useState(initialPackId);
   const [price, setPrice] = useState(String(initialPrice || ""));
+  const [category, setCategory] = useState<ProductCategory>(initialCategory);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (isOpen) {
       setName(initialName);
-      setPackId(initialPackId || packs[0]?.id || "");
       setPrice(initialPrice ? String(initialPrice) : "");
+      setCategory(initialCategory);
       setErrors({});
     }
-  }, [isOpen, initialName, initialPackId, initialPrice, packs]);
+  }, [isOpen, initialName, initialPrice, initialCategory]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +43,6 @@ export default function ProductFormModal({
     const parsedPrice = parseFloat(price);
 
     if (!trimmed) nextErrors.name = t("products.nameRequired");
-    if (!packId) nextErrors.packId = t("products.packRequired");
     if (Number.isNaN(parsedPrice) || parsedPrice <= 0) {
       nextErrors.price = t("products.priceInvalid");
     }
@@ -55,7 +52,7 @@ export default function ProductFormModal({
       return;
     }
 
-    onSubmit(trimmed, packId, parsedPrice);
+    onSubmit(trimmed, parsedPrice, category);
     onClose();
   };
 
@@ -79,6 +76,35 @@ export default function ProductFormModal({
     >
       <form id="product-form" onSubmit={handleSubmit} className="space-y-4">
         <div>
+          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            {t("products.category")}
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setCategory("vegetable")}
+              className={`rounded-xl border px-4 py-3 text-sm font-medium transition ${
+                category === "vegetable"
+                  ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                  : "border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {t("products.vegetables")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategory("fruit")}
+              className={`rounded-xl border px-4 py-3 text-sm font-medium transition ${
+                category === "fruit"
+                  ? "border-falah-accent bg-falah-accent/10 text-falah-accent"
+                  : "border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {t("products.fruits")}
+            </button>
+          </div>
+        </div>
+        <div>
           <label htmlFor="product-name" className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{t("common.name")}</label>
           <input
             id="product-name"
@@ -90,26 +116,6 @@ export default function ProductFormModal({
             className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-4 focus:ring-brand-500/15 ${errors.name ? "border-red-300" : "border-gray-200 focus:border-brand-500"}`}
           />
           {errors.name && <p className="mt-2 text-sm text-red-500">{errors.name}</p>}
-        </div>
-        <div>
-          <label htmlFor="product-pack" className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{t("common.pack")}</label>
-          <select
-            id="product-pack"
-            value={packId}
-            onChange={(e) => { setPackId(e.target.value); setErrors((p) => ({ ...p, packId: "" })); }}
-            className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-4 focus:ring-brand-500/15 ${errors.packId ? "border-red-300" : "border-gray-200 focus:border-brand-500"}`}
-          >
-            {packs.length === 0 ? (
-              <option value="">{t("products.noPacksAvailable")}</option>
-            ) : (
-              packs.map((pack) => (
-                <option key={pack.id} value={pack.id}>
-                  {pack.name} ({pack.weight} {t("common.kg")})
-                </option>
-              ))
-            )}
-          </select>
-          {errors.packId && <p className="mt-2 text-sm text-red-500">{errors.packId}</p>}
         </div>
         <div>
           <label htmlFor="product-price" className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{t("products.pricePerKgLabel")}</label>

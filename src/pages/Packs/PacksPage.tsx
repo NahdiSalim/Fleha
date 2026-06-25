@@ -8,40 +8,24 @@ import PacksTable from "../../components/packs/PacksTable";
 import StatCard from "../../components/clients/StatCard";
 import { useInventory } from "../../context/InventoryContext";
 import { t } from "../../i18n";
-import { BoxIcon, PlusIcon } from "../../icons";
-import { formatWeight } from "../../utils/format";
+import { BoxIcon, DollarLineIcon, PlusIcon } from "../../icons";
+import { formatCurrency, formatWeight } from "../../utils/format";
 import type { Pack } from "../../types/inventory";
 
 export default function PacksPage() {
-  const { packs, products, addPack, updatePack, deletePack, getPackUsageCount } = useInventory();
+  const { packs, addPack, updatePack, deletePack } = useInventory();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editPack, setEditPack] = useState<Pack | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Pack | null>(null);
-  const [deleteError, setDeleteError] = useState("");
-
-  const usageCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    packs.forEach((p) => { counts[p.id] = getPackUsageCount(p.id); });
-    return counts;
-  }, [packs, getPackUsageCount]);
 
   const avgWeight = packs.length
     ? packs.reduce((s, p) => s + p.weight, 0) / packs.length
     : 0;
 
-  const handleDelete = () => {
-    if (!deleteTarget) return;
-    const ok = deletePack(deleteTarget.id);
-    if (!ok) {
-      setDeleteError(
-        t("packs.cannotDeleteMessage", {
-          name: deleteTarget.name,
-          count: getPackUsageCount(deleteTarget.id),
-        })
-      );
-      setDeleteTarget(null);
-    }
-  };
+  const avgPrice = useMemo(() => {
+    if (packs.length === 0) return 0;
+    return packs.reduce((s, p) => s + p.price, 0) / packs.length;
+  }, [packs]);
 
   return (
     <>
@@ -62,16 +46,15 @@ export default function PacksPage() {
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatCard label={t("packs.totalPacks")} value={String(packs.length)} icon={<BoxIcon className="h-5 w-5" />} accent="primary" delay={0} />
           <StatCard label={t("packs.avgWeight")} value={formatWeight(avgWeight)} icon={<BoxIcon className="h-5 w-5" />} accent="accent" delay={0.05} />
-          <StatCard label={t("packs.linkedProducts")} value={String(products.length)} icon={<BoxIcon className="h-5 w-5" />} accent="primary" delay={0.1} />
+          <StatCard label={t("packs.avgPrice")} value={formatCurrency(avgPrice)} icon={<DollarLineIcon className="h-5 w-5" />} accent="primary" delay={0.1} />
         </div>
 
-        <PacksTable packs={packs} usageCounts={usageCounts} onEdit={setEditPack} onDelete={setDeleteTarget} />
+        <PacksTable packs={packs} onEdit={setEditPack} onDelete={setDeleteTarget} />
       </AnimatedPage>
 
-      <PackFormModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onSubmit={(name, weight) => addPack(name, weight)} mode="add" />
-      <PackFormModal isOpen={!!editPack} onClose={() => setEditPack(null)} onSubmit={(name, weight) => editPack && updatePack(editPack.id, name, weight)} initialName={editPack?.name} initialWeight={editPack?.weight} mode="edit" />
-      <ConfirmDialog isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} title={t("packs.deleteTitle")} message={t("packs.deleteMessage", { name: deleteTarget?.name ?? "" })} confirmLabel={t("common.delete")} />
-      <ConfirmDialog isOpen={!!deleteError} onClose={() => setDeleteError("")} onConfirm={() => setDeleteError("")} title={t("packs.cannotDeleteTitle")} message={deleteError} confirmLabel={t("common.ok")} variant="primary" />
+      <PackFormModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onSubmit={(name, weight, price) => addPack(name, weight, price)} mode="add" />
+      <PackFormModal isOpen={!!editPack} onClose={() => setEditPack(null)} onSubmit={(name, weight, price) => editPack && updatePack(editPack.id, name, weight, price)} initialName={editPack?.name} initialWeight={editPack?.weight} initialPrice={editPack?.price} mode="edit" />
+      <ConfirmDialog isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={() => deleteTarget && deletePack(deleteTarget.id)} title={t("packs.deleteTitle")} message={t("packs.deleteMessage", { name: deleteTarget?.name ?? "" })} confirmLabel={t("common.delete")} />
     </>
   );
 }

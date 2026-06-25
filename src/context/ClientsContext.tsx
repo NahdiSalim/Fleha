@@ -39,11 +39,19 @@ interface ClientsContextValue {
   updateInvoiceBalanceDue: (invoiceId: string, balanceDue: number) => void;
   deleteInvoice: (invoiceId: string) => void;
   createInvoice: (params: {
-    clientId: string;
+    clientId?: string;
+    newClientName?: string;
     products: InvoiceProduct[];
     paid: number;
     date?: string;
-  }) => Invoice;
+    pawnCode?: string;
+    packDepositTotal?: number;
+  }) => { invoice: Invoice; client: Client };
+  updateInvoiceProductSupplier: (
+    invoiceId: string,
+    productLineId: string,
+    supplier: string
+  ) => void;
 }
 
 const ClientsContext = createContext<ClientsContextValue | null>(null);
@@ -176,27 +184,77 @@ export function ClientsProvider({ children }: { children: ReactNode }) {
 
   const createInvoice = useCallback(
     (params: {
-      clientId: string;
+      clientId?: string;
+      newClientName?: string;
       products: InvoiceProduct[];
       paid: number;
       date?: string;
+      pawnCode?: string;
+      packDepositTotal?: number;
     }) => {
-      const total = computeInvoiceTotal(params.products);
+      let client: Client | undefined;
+      let clients = data.clients;
+
+      if (params.clientId) {
+        client = data.clients.find((c) => c.id === params.clientId);
+      } else if (params.newClientName?.trim()) {
+        const created: Client = {
+          id: crypto.randomUUID(),
+          name: params.newClientName.trim(),
+          createdAt: new Date().toISOString(),
+        };
+        client = created;
+        clients = [created, ...data.clients];
+      }
+
+      if (!client) {
+        throw new Error("Client is required to create an invoice");
+      }
+
+      const productsTotal = computeInvoiceTotal(params.products);
+      const packDepositTotal = Math.max(0, params.packDepositTotal ?? 0);
+      const total = Math.round((productsTotal + packDepositTotal) * 100) / 100;
       const paid = Math.min(Math.max(0, params.paid), total);
       const balanceDue = Math.round((total - paid) * 100) / 100;
       const invoice: Invoice = {
         id: crypto.randomUUID(),
         invoiceId: generateInvoiceId(data.invoices.map((i) => i.invoiceId)),
-        clientId: params.clientId,
+        clientId: client.id,
         date: params.date ?? new Date().toISOString(),
         products: params.products,
         total,
         paid,
         balanceDue,
         status: deriveInvoiceStatus(balanceDue),
+        ...(params.pawnCode ? { pawnCode: params.pawnCode } : {}),
+        ...(packDepositTotal > 0 ? { packDepositTotal } : {}),
       };
-      persist({ ...data, invoices: [invoice, ...data.invoices] });
-      return invoice;
+      persist({ ...data, clients, invoices: [invoice, ...data.invoices] });
+      return { invoice, client };
+    },
+    [data, persist]
+  );
+
+  const updateInvoiceProductSupplier = useCallback(
+    (invoiceId: string, productLineId: string, supplier: string) => {
+      const nextSupplier = supplier.trim();
+      if (!nextSupplier) return;
+
+      persist({
+        ...data,
+        invoices: data.invoices.map((invoice) =>
+          invoice.id !== invoiceId
+            ? invoice
+            : {
+                ...invoice,
+                products: invoice.products.map((product) =>
+                  product.id === productLineId
+                    ? { ...product, supplier: nextSupplier }
+                    : product
+                ),
+              }
+        ),
+      });
     },
     [data, persist]
   );
@@ -214,6 +272,7 @@ export function ClientsProvider({ children }: { children: ReactNode }) {
       updateInvoiceBalanceDue,
       deleteInvoice,
       createInvoice,
+      updateInvoiceProductSupplier,
     }),
     [
       clients,
@@ -227,6 +286,7 @@ export function ClientsProvider({ children }: { children: ReactNode }) {
       updateInvoiceBalanceDue,
       deleteInvoice,
       createInvoice,
+      updateInvoiceProductSupplier,
     ]
   );
 
